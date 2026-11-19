@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gedi-mangrove-explorer"
+version = "0.1.0"
+description = "GEDI spaceborne lidar (L2B structure, L4A biomass) over the Ciénaga Grande de Santa Marta mangrove, with an interactive bilingual dashboard."
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "Lina María Quintero Fonseca"}]
+requires-python = ">=3.10"
+dependencies = ["h5py", "numpy", "pandas"]
+
+[project.optional-dependencies]
+build = ["earthengine-api", "earthaccess"]
+test = ["pytest>=7", "pandas", "numpy", "h5py"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

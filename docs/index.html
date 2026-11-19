@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GEDI Mangrove Explorer</title>
+<meta name="description" content="Canopy height, cover, plant area and biomass from NASA GEDI spaceborne lidar over the Ciénaga Grande de Santa Marta, Colombia.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+:root{
+  --bg:#0b110f; --glass:rgba(14,24,21,.66); --glass-strong:rgba(12,20,18,.82); --line:rgba(214,232,222,.12);
+  --ink:#e9f0eb; --muted:#9db0a6; --faint:#6f8279; --gold1:#f6dfa3; --gold2:#c9953f; --accent:#e8892f;
+  --mangroves:#38c97f; --wetland:#4cb8c6; --grass:#d8aa4c; --tree:#93a35e;
+  --display:"Bricolage Grotesque","Manrope",system-ui,sans-serif; --body:"Manrope",system-ui,sans-serif;
+  --chip:rgba(255,255,255,.04); --track:rgba(255,255,255,.06); --grid:rgba(214,232,222,.08); --shadow:0 18px 50px rgba(0,0,0,.35);
+  --on:rgba(232,137,47,.16); --on-line:rgba(232,137,47,.55); --gold-on:rgba(246,223,163,.14); --attrib:rgba(10,16,14,.7);
+}
+:root[data-theme="light"]{
+  --bg:#d7eadf; --glass:rgba(226,243,232,.72); --glass-strong:rgba(220,240,228,.86); --line:rgba(24,74,48,.16);
+  --ink:#10261a; --muted:#3c5a49; --faint:#5f7d6c; --gold1:#c9922c; --gold2:#7f5410; --accent:#b8581a;
+  --mangroves:#1d9a58; --wetland:#1b8a9a; --grass:#a8781f; --tree:#66783a;
+  --chip:rgba(255,255,255,.42); --track:rgba(16,38,26,.10); --grid:rgba(16,38,26,.12); --shadow:0 18px 50px rgba(20,60,40,.18);
+  --on:rgba(184,88,26,.14); --on-line:rgba(184,88,26,.55); --gold-on:rgba(201,146,44,.18); --attrib:rgba(226,243,232,.8);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--body)}
+#map{position:fixed;inset:0}
+.maplibregl-ctrl-attrib{background:var(--attrib)!important;color:var(--muted)!important;font-size:10px}
+.maplibregl-ctrl-attrib a{color:var(--muted)!important}
+.panel{position:fixed;background:var(--glass);backdrop-filter:blur(14px) saturate(120%);-webkit-backdrop-filter:blur(14px) saturate(120%);
+  border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+#side{top:18px;left:18px;width:360px;max-height:calc(100% - 36px);overflow:auto;padding:22px 22px 18px}
+#inspect{right:18px;bottom:28px;width:330px;padding:18px 20px}
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.prefs{display:flex;gap:8px;margin:0 0 14px}
+.prefs .toggle{flex:1}
+.prefs .toggle button{padding:6px 4px;font-size:11.5px}
+h1{font-family:var(--display);font-weight:800;font-size:30px;line-height:1.05;margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--accent);font-size:13px;font-weight:600;margin:0 0 16px}
+.lead{color:var(--muted);font-size:13px;line-height:1.5;margin:0 0 18px}
+.group{margin:0 0 18px}
+.label{font-size:12px;color:var(--faint);margin:0 0 8px;font-weight:600}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button,.chip{font:600 12px var(--body);color:var(--muted);background:var(--chip);border:1px solid var(--line);
+  border-radius:999px;padding:7px 11px;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.seg button[aria-pressed="true"]{background:var(--on);color:var(--ink);border-color:var(--on-line)}
+.chip{display:inline-flex;align-items:center;gap:7px}
+.chip i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.chip[aria-pressed="false"]{opacity:.42}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.toggle{display:flex;background:var(--chip);border:1px solid var(--line);border-radius:12px;padding:3px}
+.toggle button{flex:1;font:600 12px var(--body);color:var(--muted);background:none;border:0;border-radius:9px;padding:8px 6px;cursor:pointer}
+.toggle button[aria-pressed="true"]{background:var(--gold-on);color:var(--gold1)}
+:root[data-theme="light"] .toggle button[aria-pressed="true"]{color:var(--gold2)}
+.big{display:flex;align-items:baseline;gap:12px;margin:2px 0 4px}
+.num{font-family:var(--display);font-weight:800;font-size:46px;line-height:1;background:linear-gradient(180deg,var(--gold1),var(--gold2));
+  -webkit-background-clip:text;background-clip:text;color:transparent;font-variant-numeric:tabular-nums}
+.was{color:var(--faint);text-decoration:line-through;font-size:15px;font-variant-numeric:tabular-nums}
+.unit{color:var(--muted);font-size:13px}
+.note{color:var(--muted);font-size:12px;line-height:1.45;margin:6px 0 0}
+.bars{display:grid;gap:9px;margin-top:4px}
+.bar{display:grid;grid-template-columns:118px 1fr 58px;align-items:center;gap:10px;font-size:12px}
+.bar .t{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .track{height:8px;background:var(--track);border-radius:5px;overflow:hidden}
+.bar .fill{display:block;height:100%;width:100%;border-radius:5px;transform-origin:left center;transition:transform .35s ease}
+.bar .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ramp{height:8px;border-radius:5px;margin:8px 0 4px}
+.ramp-l{display:flex;justify-content:space-between;color:var(--faint);font-size:11px;font-variant-numeric:tabular-nums}
+#inspect h2{font-family:var(--display);font-weight:600;font-size:18px;margin:0 0 4px}
+#inspect .meta{color:var(--muted);font-size:12px;margin:0 0 10px}
+#inspect svg text{fill:var(--faint);font:11px var(--body)}
+.foot{color:var(--faint);font-size:11px;line-height:1.5;margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.foot a{color:var(--muted)}
+@media (max-width:760px){
+  #side{top:auto;bottom:0;left:0;right:0;width:auto;max-height:52%;border-radius:18px 18px 0 0}
+  #inspect{display:none}
+  h1{font-size:24px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="map" role="img" data-i-aria="map"></div>
+
+<aside id="side" class="panel">
+  <div class="prefs"><div class="toggle" id="langSeg" role="group" aria-label="Language / Idioma"><button data-l="en">English</button><button data-l="es">Español</button></div><div class="toggle" id="themeSeg" role="group" aria-label="Theme / Tema"><button data-t="dark" data-i="dark"></button><button data-t="light" data-i="light"></button></div></div>
+  <h1 data-i="title"></h1>
+  <p class="sub" data-i="sub"></p>
+  <p class="lead" data-i="lead"></p>
+
+  <div class="group">
+    <p class="label" data-i="l_metric"></p>
+    <div class="seg" id="metric"></div>
+  </div>
+
+  <div class="group">
+    <p class="label" data-i="l_class"></p>
+    <div class="seg" id="classes"></div>
+  </div>
+
+  <div class="group">
+    <p class="label" data-i="l_sens"></p>
+    <div class="toggle" id="sens">
+      <button aria-pressed="true" data-s="95" data-i="s95"></button>
+      <button aria-pressed="false" data-s="98" data-i="s98"></button>
+    </div>
+  </div>
+
+  <div class="group">
+    <p class="label" id="bigLabel">Median for mangroves</p>
+    <div class="big"><span class="num" id="bigNum">–</span><span class="unit" id="bigUnit"></span><span class="was" id="bigWas"></span></div>
+    <p class="note" id="bigNote"></p>
+  </div>
+
+  <div class="group">
+    <p class="label" id="barsLabel">Median by cover type</p>
+    <div class="bars" id="bars"></div>
+  </div>
+
+  <div class="group">
+    <p class="label" id="rampLabel"></p>
+    <div class="ramp" id="ramp"></div>
+    <div class="ramp-l"><span id="rampMin"></span><span id="rampMax"></span></div>
+  </div>
+
+  <p class="foot" data-i-html="foot"></p>
+</aside>
+
+<section id="inspect" class="panel" aria-live="polite">
+  <h2 id="iTitle">Vertical profile</h2>
+  <p class="meta" id="iMeta">Plant area per 5 m layer, averaged by cover type. Click a structure footprint to see its own profile.</p>
+  <svg id="prof" width="290" height="190" viewBox="0 0 290 190" role="img" aria-label="Vertical plant area profile"></svg>
+</section>
+
+<script>
+const T = {
+ en:{title:"GEDI over the Ciénaga Grande", sub:"Spaceborne lidar on a Caribbean mangrove, Colombia",
+  lead:"Each dot is one laser footprint of NASA's GEDI, about 25 m across. Pick a measurement, switch cover types on and off, and see how much a single quality filter changes the numbers.",
+  l_metric:"Measurement", l_class:"Cover type (ESA WorldCover 2021)", l_sens:"Beam sensitivity required",
+  s95:"0.95, training default", s98:"0.98, dense tropics", map:"Map of GEDI footprints over the Ciénaga Grande de Santa Marta",
+  m_h:"Canopy height", m_cv:"Canopy cover", m_pai:"Plant area index", m_fhd:"Foliage height diversity", m_b:"Biomass",
+  c_95:"Mangroves", c_90:"Herbaceous wetland", c_30:"Grassland", c_10:"Tree cover",
+  big:"Median for mangroves, sensitivity {s}", bars:"Median by cover type",
+  noteB:"{n} biomass footprints. In dense canopy a low-sensitivity pulse can stop at a canopy layer it takes for the ground, which lowers height and biomass; requiring 0.98 keeps fewer footprints but avoids that bias.",
+  noteS:"{n} structure footprints on mangroves.", prof:"Vertical profile",
+  profMeta:"Plant area per 5 m layer, averaged by cover type. Click a structure footprint to see its own profile.",
+  axis:"Plant area volume density (m²/m³)", fp:"Height {h} m · cover {cv} · PAI {pai} · FHD {fhd}",
+  toLight:"Switch to light interface", toDark:"Switch to dark interface", dark:"Dark", light:"Light",
+  foot:'GEDI L2B and L4A version 2 (NASA, Dubayah et al. 2020), 2019–2025, quality-filtered. Cover types from ESA WorldCover 2021. Imagery: Esri World Imagery. Code and data: <a href="https://github.com/linaq11/gedi-mangrove-explorer">github.com/linaq11/gedi-mangrove-explorer</a>.'},
+ es:{title:"GEDI sobre la Ciénaga Grande", sub:"Lidar espacial sobre un manglar del Caribe colombiano",
+  lead:"Cada punto es una huella del láser GEDI de la NASA, de unos 25 m de diámetro. Elige una medida, activa o apaga coberturas y mira cuánto cambian las cifras con un solo filtro de calidad.",
+  l_metric:"Medida", l_class:"Cobertura (ESA WorldCover 2021)", l_sens:"Sensibilidad mínima del haz",
+  s95:"0,95, valor estándar", s98:"0,98, trópico denso", map:"Mapa de huellas de GEDI sobre la Ciénaga Grande de Santa Marta",
+  m_h:"Altura del dosel", m_cv:"Cobertura del dosel", m_pai:"Índice de área vegetal", m_fhd:"Diversidad de altura del follaje", m_b:"Biomasa",
+  c_95:"Manglar", c_90:"Humedal herbáceo", c_30:"Pastizal", c_10:"Bosque",
+  big:"Mediana en manglar, sensibilidad {s}", bars:"Mediana por cobertura",
+  noteB:"{n} huellas de biomasa. En dosel denso, un pulso de baja sensibilidad puede detenerse en una capa del dosel que confunde con el suelo, lo que baja la altura y la biomasa; exigir 0,98 deja menos huellas pero evita ese sesgo.",
+  noteS:"{n} huellas de estructura en manglar.", prof:"Perfil vertical",
+  profMeta:"Área vegetal por capa de 5 m, promedio por cobertura. Haz clic en una huella de estructura para ver su propio perfil.",
+  axis:"Densidad de área vegetal (m²/m³)", fp:"Altura {h} m · cobertura {cv} · área vegetal {pai} · diversidad {fhd}",
+  toLight:"Cambiar a interfaz clara", toDark:"Cambiar a interfaz oscura", dark:"Oscuro", light:"Claro",
+  foot:'GEDI L2B y L4A versión 2 (NASA, Dubayah et al. 2020), 2019–2025, con filtros de calidad. Coberturas de ESA WorldCover 2021. Imagen: Esri World Imagery. Código y datos: <a href="https://github.com/linaq11/gedi-mangrove-explorer">github.com/linaq11/gedi-mangrove-explorer</a>.'}
+};
+let lang = "en";
+try { lang = localStorage.getItem("gedi-lang") || "en"; } catch (e) {}
+const t = (k, v={}) => T[lang][k].replace(/\{(\w+)\}/g, (_, x) => v[x]);
+function applyLang(l, save=true){
+  lang = l; document.documentElement.lang = l;
+  document.querySelectorAll("[data-i]").forEach(e => e.textContent = t(e.dataset.i));
+  document.querySelectorAll("[data-i-html]").forEach(e => e.innerHTML = t(e.dataset.iHtml));
+  document.querySelectorAll("[data-i-aria]").forEach(e => e.setAttribute("aria-label", t(e.dataset.iAria)));
+  document.querySelectorAll("#langSeg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.l === l)));
+  if (save) { try { localStorage.setItem("gedi-lang", l); } catch (e) {} }
+  if (state.data.l2b) { buildControls(); update(); }
+}
+const CLASSES = {95:{name:"Mangroves",v:"--mangroves"},90:{name:"Herbaceous wetland",v:"--wetland"},30:{name:"Grassland",v:"--grass"},10:{name:"Tree cover",v:"--tree"}};
+function refreshClassColors(){ const cs=getComputedStyle(document.documentElement); Object.values(CLASSES).forEach(c=>c.col=cs.getPropertyValue(c.v).trim()); }
+refreshClassColors();
+const METRICS = {
+  h:  {name:"Canopy height", key:"h", unit:"m", src:"l2b", max:25, dec:1, ramp:["#1d3b2e","#2f7f53","#63c27a","#d7f08a"]},
+  cv: {name:"Canopy cover", key:"cv", unit:"", src:"l2b", max:1, dec:2, ramp:["#2a2418","#6b5a2c","#7fb35a","#c8f19a"]},
+  pai:{name:"Plant area index", key:"pai", unit:"m²/m²", src:"l2b", max:5, dec:2, ramp:["#1c2b33","#2f6f7a","#58c0a8","#d2f5b0"]},
+  fhd:{name:"Foliage height diversity", key:"fhd", unit:"", src:"l2b", max:3.2, dec:2, ramp:["#251d33","#5d3f7a","#c06a9a","#f6c9a0"]},
+  b:  {name:"Biomass", key:"b", unit:"Mg/ha", src:"l4a", max:150, dec:1, ramp:["#2b2116","#7a5422","#d8a447","#fff0b8"]}
+};
+const state = {metric:"h", classes:new Set([95,90,30,10]), s98:false, data:{}};
+const loc = () => lang === "es" ? "es-CO" : "en-US";
+const fmt = (v,d) => v==null ? "–" : v.toLocaleString(loc(),{minimumFractionDigits:d,maximumFractionDigits:d});
+const median = a => { if(!a.length) return null; const s=[...a].sort((x,y)=>x-y), m=s.length>>1; return s.length%2?s[m]:(s[m-1]+s[m])/2; };
+const mean = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+
+function el(tag, attrs={}, kids=[]) { const e=document.createElement(tag); Object.entries(attrs).forEach(([k,v])=>k==="text"?e.textContent=v:e.setAttribute(k,v)); kids.forEach(k=>e.appendChild(k)); return e; }
+
+function buildControls(){
+  const m = document.getElementById("metric"); m.innerHTML = "";
+  Object.entries(METRICS).forEach(([k,v])=>{ const b=el("button",{"aria-pressed":String(k===state.metric),text:t("m_"+k)}); b.onclick=()=>{state.metric=k; [...m.children].forEach(c=>c.setAttribute("aria-pressed",String(c===b))); update();}; m.appendChild(b); });
+  const c = document.getElementById("classes"); c.innerHTML = "";
+  Object.entries(CLASSES).forEach(([k,v])=>{ const b=el("button",{class:"chip","aria-pressed":String(state.classes.has(+k))},[el("i",{style:`background:var(${v.v})`}),document.createTextNode(t("c_"+k))]);
+    b.onclick=()=>{ const n=+k; state.classes.has(n)?state.classes.delete(n):state.classes.add(n); b.setAttribute("aria-pressed",String(state.classes.has(n))); update(); }; c.appendChild(b); });
+  document.querySelectorAll("#sens button").forEach(b=>b.onclick=()=>{ state.s98=b.dataset.s==="98"; document.querySelectorAll("#sens button").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); update(); });
+}
+
+function rows(src, s98){ return state.data[src].filter(r => state.classes.has(r.c) && (!s98 || r.s98)); }
+
+function update(){
+  if (!state.data.l2b || !map.getLayer("l2b-pts")) return;
+  const M = METRICS[state.metric];
+  ["l2b","l4a"].forEach(src=>{
+    const vis = M.src===src ? "visible":"none";
+    map.setLayoutProperty(src+"-pts","visibility",vis);
+    const f = ["all",["in",["get","c"],["literal",[...state.classes]]]]; if(state.s98) f.push(["==",["get","s98"],1]);
+    map.setFilter(src+"-pts", f);
+  });
+  const stops=[]; M.ramp.forEach((c,i)=>stops.push(M.max*i/(M.ramp.length-1),c));
+  map.setPaintProperty(M.src+"-pts","circle-color",["interpolate",["linear"],["get",M.key],...stops]);
+  document.getElementById("ramp").style.background=`linear-gradient(90deg,${M.ramp.join(",")})`;
+  document.getElementById("rampLabel").textContent = `${t("m_"+state.metric)}${M.unit?" ("+M.unit+")":""}`;
+  document.getElementById("rampMin").textContent = "0"; document.getElementById("rampMax").textContent = `${M.max}+`;
+
+  // headline: mangroves, with the value under the other sensitivity struck through
+  const mang = (s98) => state.data[M.src].filter(r=>r.c===95 && (!s98 || r.s98)).map(r=>r[M.key]);
+  const now = mang(state.s98), other = mang(!state.s98);
+  const stat = median;
+  document.getElementById("bigLabel").textContent = t("big",{s:fmt(state.s98?0.98:0.95,2)});
+  document.getElementById("bigNum").textContent = fmt(stat(now), M.dec);
+  document.getElementById("bigUnit").textContent = M.unit;
+  document.getElementById("bigWas").textContent = state.s98 ? fmt(stat(other), M.dec) : "";
+  document.getElementById("bigNote").textContent = t(M.key==="b" ? "noteB" : "noteS", {n: now.length.toLocaleString(loc())});
+
+  // bars by class
+  const bars = document.getElementById("bars"); bars.innerHTML="";
+  document.getElementById("barsLabel").textContent = t("bars");
+  const vals = Object.entries(CLASSES).map(([k,v])=>{ const a=rows(M.src,state.s98).filter(r=>r.c===+k).map(r=>r[M.key]); return [k,v,state.classes.has(+k)?stat(a):null,a.length]; });
+  const top = Math.max(...vals.map(v=>v[2]||0), 1e-9);
+  vals.forEach(([k,v,val,n])=>{ bars.appendChild(el("div",{class:"bar",title:`${n.toLocaleString(loc())}`},[
+    el("span",{class:"t",text:t("c_"+k)}), el("span",{class:"track"},[el("span",{class:"fill",style:`transform:scaleX(${val==null?0:val/top});background:${v.col}`})]),
+    el("span",{class:"v",text:fmt(val,M.dec)})])); });
+  if(!selected) drawClassProfiles();
+}
+
+// vertical PAVD profile chart (0-40 m, 5 m layers)
+let selected = null;
+function drawProfiles(series, maxv){
+  const svg = document.getElementById("prof"); svg.innerHTML="";
+  const W=290,H=190,L=34,B=22,TOP=6, w=W-L-10, h=H-B-TOP;
+  const ns="http://www.w3.org/2000/svg", mk=(t,a)=>{const e=document.createElementNS(ns,t); Object.entries(a).forEach(([k,v])=>e.setAttribute(k,v)); return e;};
+  for(let z=0; z<=40; z+=10){ const y=TOP+h-h*z/40; svg.appendChild(mk("line",{x1:L,x2:W-10,y1:y,y2:y,stroke:getComputedStyle(document.documentElement).getPropertyValue("--grid")})); const t=mk("text",{x:L-6,y:y+4,"text-anchor":"end"}); t.textContent=z+" m"; svg.appendChild(t); }
+  const t=mk("text",{x:L+w/2,y:H-4,"text-anchor":"middle"}); t.textContent=T[lang].axis; svg.appendChild(t);
+  series.forEach(({p,col})=>{ const pts=p.map((v,i)=>`${L+w*v/maxv},${TOP+h-h*(i*5+2.5)/40}`); pts.unshift(`${L},${TOP+h}`);
+    svg.appendChild(mk("polyline",{points:pts.join(" "),fill:"none",stroke:col,"stroke-width":2.4,"stroke-linejoin":"round"})); });
+}
+function drawClassProfiles(){
+  const series = Object.entries(CLASSES).filter(([k])=>state.classes.has(+k)).map(([k,v])=>{
+    const a = rows("l2b",state.s98).filter(r=>r.c===+k); const p=[0,1,2,3,4,5,6,7].map(i=>mean(a.map(r=>r.p[i]))||0); return {p,col:v.col}; });
+  drawProfiles(series, Math.max(0.05,...series.flatMap(s=>s.p))*1.1);
+  document.getElementById("iTitle").textContent = t("prof");
+  document.getElementById("iMeta").textContent = t("profMeta");
+}
+
+let currentTheme = "dark";
+try { currentTheme = localStorage.getItem("gedi-theme") || "dark"; } catch (e) {}
+document.documentElement.setAttribute("data-theme", currentTheme);
+refreshClassColors();
+function applyTheme(t, save=true){
+  currentTheme = t; document.documentElement.setAttribute("data-theme", t); refreshClassColors();
+  document.querySelectorAll("#themeSeg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === t)));
+  if (map.getLayer("img")) {
+    map.setPaintProperty("img","raster-brightness-max", t === "dark" ? .62 : .97);
+    map.setPaintProperty("img","raster-saturation", t === "dark" ? -.35 : -.05);
+    map.setPaintProperty("bg","background-color", t === "dark" ? "#0b110f" : "#d7eadf");
+    ["l2b-pts","l4a-pts"].forEach(l => { if (!map.getLayer(l)) return;
+      map.setPaintProperty(l,"circle-stroke-width",["case",["boolean",["feature-state","sel"],false],2, t === "dark" ? 0 : .7]);
+      map.setPaintProperty(l,"circle-stroke-color",["case",["boolean",["feature-state","sel"],false], t === "dark" ? "#ffffff" : "#10261a", "rgba(16,38,26,.55)"]); });
+  }
+  if (save) { try { localStorage.setItem("gedi-theme", t); } catch (e) {} }
+  update();
+}
+document.querySelectorAll("#themeSeg button").forEach(b => b.onclick = () => applyTheme(b.dataset.t));
+document.querySelectorAll("#langSeg button").forEach(b => b.onclick = () => applyLang(b.dataset.l));
+document.querySelectorAll("#themeSeg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === currentTheme)));
+applyLang(lang, false);
+const map = new maplibregl.Map({
+  container:"map", center:[-74.53,10.82], zoom:9.6, minZoom:7, maxZoom:17, attributionControl:{compact:true},
+  style:{version:8, sources:{img:{type:"raster",tileSize:256,attribution:"Imagery © Esri, Maxar, Earthstar Geographics",
+    tiles:["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"]}},
+    layers:[{id:"bg",type:"background",paint:{"background-color":"#0b110f"}},{id:"img",type:"raster",source:"img",paint:{"raster-brightness-max":.62,"raster-saturation":-.35,"raster-contrast":.08}}]}
+});
+map.addControl(new maplibregl.NavigationControl({showCompass:false}),"top-right");
+
+Promise.all(["l2b","l4a","summary"].map(n=>fetch(`data/${n}.json`).then(r=>r.json()))).then(([l2b,l4a,summary])=>{
+  state.data = {l2b,l4a,summary};
+  const gj = (arr)=>({type:"FeatureCollection",features:arr.map((r,i)=>({type:"Feature",id:i,properties:{...r,p:undefined,i},geometry:{type:"Point",coordinates:[r.x,r.y]}}))});
+  map.on("load",()=>{
+    map.addSource("l4a",{type:"geojson",data:gj(l4a)}); map.addSource("l2b",{type:"geojson",data:gj(l2b)});
+    ["l4a","l2b"].forEach(s=>map.addLayer({id:s+"-pts",type:"circle",source:s,paint:{
+      "circle-radius":["interpolate",["linear"],["zoom"],8,1.6,12,3.4,15,7],"circle-opacity":.92,
+      "circle-stroke-width":["case",["boolean",["feature-state","sel"],false],2,0],"circle-stroke-color":"#ffffff"}}));
+    buildControls(); update(); applyTheme(currentTheme, false);
+    const bb = summary.bbox, wide = window.innerWidth > 760;
+    map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], {padding: wide ? {top: 30, bottom: 30, left: 400, right: 360} : {top: 20, left: 20, right: 20, bottom: Math.round(window.innerHeight * 0.52)}, duration: 0});
+    map.on("click","l2b-pts",e=>{
+      const f=e.features[0], r=l2b[f.properties.i];
+      if(selected!==null) map.setFeatureState({source:"l2b",id:selected},{sel:false});
+      selected=f.id; map.setFeatureState({source:"l2b",id:selected},{sel:true});
+      drawProfiles([{p:r.p,col:CLASSES[r.c].col}], Math.max(0.05,...r.p)*1.1);
+      document.getElementById("iTitle").textContent = `${t("c_"+r.c)}, ${r.d}`;
+      document.getElementById("iMeta").textContent = t("fp",{h:fmt(r.h,1),cv:fmt(r.cv,2),pai:fmt(r.pai,2),fhd:fmt(r.fhd,2)});
+    });
+    map.on("click",e=>{ if(!map.queryRenderedFeatures(e.point,{layers:["l2b-pts"]}).length && selected!==null){ map.setFeatureState({source:"l2b",id:selected},{sel:false}); selected=null; drawClassProfiles(); }});
+    ["l2b-pts","l4a-pts"].forEach(l=>{ map.on("mouseenter",l,()=>map.getCanvas().style.cursor="pointer"); map.on("mouseleave",l,()=>map.getCanvas().style.cursor=""); });
+  });
+});
+</script>
+</body>
+</html>
