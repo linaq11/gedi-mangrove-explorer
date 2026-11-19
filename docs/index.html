@@ -293,7 +293,7 @@ map.addControl(new maplibregl.NavigationControl({showCompass:false}),"top-right"
 Promise.all(["l2b","l4a","summary"].map(n=>fetch(`data/${n}.json`).then(r=>r.json()))).then(([l2b,l4a,summary])=>{
   state.data = {l2b,l4a,summary};
   const gj = (arr)=>({type:"FeatureCollection",features:arr.map((r,i)=>({type:"Feature",id:i,properties:{...r,p:undefined,i},geometry:{type:"Point",coordinates:[r.x,r.y]}}))});
-  map.on("load",()=>{
+  const init = () => {
     map.addSource("l4a",{type:"geojson",data:gj(l4a)}); map.addSource("l2b",{type:"geojson",data:gj(l2b)});
     ["l4a","l2b"].forEach(s=>map.addLayer({id:s+"-pts",type:"circle",source:s,paint:{
       "circle-radius":["interpolate",["linear"],["zoom"],8,1.6,12,3.4,15,7],"circle-opacity":.92,
@@ -311,7 +311,8 @@ Promise.all(["l2b","l4a","summary"].map(n=>fetch(`data/${n}.json`).then(r=>r.jso
     });
     map.on("click",e=>{ if(!map.queryRenderedFeatures(e.point,{layers:["l2b-pts"]}).length && selected!==null){ map.setFeatureState({source:"l2b",id:selected},{sel:false}); selected=null; drawClassProfiles(); }});
     ["l2b-pts","l4a-pts"].forEach(l=>{ map.on("mouseenter",l,()=>map.getCanvas().style.cursor="pointer"); map.on("mouseleave",l,()=>map.getCanvas().style.cursor=""); });
-  });
+  };
+  if (map.loaded()) init(); else map.once("load", init);     // data may arrive before or after the map
 });
 </script>
 </body>
