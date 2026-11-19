@@ -290,29 +290,38 @@ const map = new maplibregl.Map({
 });
 map.addControl(new maplibregl.NavigationControl({showCompass:false}),"top-right");
 
+// The map style is inline, so layers can be added as soon as the style is parsed,
+// without waiting for the imagery tiles; data and style may become ready in either order.
+let styleReady = false, started = false;
+const gj = (arr)=>({type:"FeatureCollection",features:arr.map((r,i)=>({type:"Feature",id:i,properties:{...r,p:undefined,i},geometry:{type:"Point",coordinates:[r.x,r.y]}}))});
+function start(){
+  if (started || !styleReady || !state.data.l2b) return;
+  started = true;
+  const {l2b, l4a, summary} = state.data;
+  map.addSource("l4a",{type:"geojson",data:gj(l4a)}); map.addSource("l2b",{type:"geojson",data:gj(l2b)});
+  ["l4a","l2b"].forEach(s=>map.addLayer({id:s+"-pts",type:"circle",source:s,paint:{
+    "circle-radius":["interpolate",["linear"],["zoom"],8,1.6,12,3.4,15,7],"circle-opacity":.92,
+    "circle-stroke-width":["case",["boolean",["feature-state","sel"],false],2,0],"circle-stroke-color":"#ffffff"}}));
+  buildControls(); update(); applyTheme(currentTheme, false);
+  const bb = summary.bbox, wide = window.innerWidth > 760;
+  map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], {padding: wide ? {top: 30, bottom: 30, left: 400, right: 360} : {top: 20, left: 20, right: 20, bottom: Math.round(window.innerHeight * 0.52)}, duration: 0});
+  map.on("click","l2b-pts",e=>{
+    const f=e.features[0], r=l2b[f.properties.i];
+    if(selected!==null) map.setFeatureState({source:"l2b",id:selected},{sel:false});
+    selected=f.id; map.setFeatureState({source:"l2b",id:selected},{sel:true});
+    drawProfiles([{p:r.p,col:CLASSES[r.c].col}], Math.max(0.05,...r.p)*1.1);
+    document.getElementById("iTitle").textContent = `${t("c_"+r.c)}, ${r.d}`;
+    document.getElementById("iMeta").textContent = t("fp",{h:fmt(r.h,1),cv:fmt(r.cv,2),pai:fmt(r.pai,2),fhd:fmt(r.fhd,2)});
+  });
+  map.on("click",e=>{ if(!map.queryRenderedFeatures(e.point,{layers:["l2b-pts"]}).length && selected!==null){ map.setFeatureState({source:"l2b",id:selected},{sel:false}); selected=null; drawClassProfiles(); }});
+  ["l2b-pts","l4a-pts"].forEach(l=>{ map.on("mouseenter",l,()=>map.getCanvas().style.cursor="pointer"); map.on("mouseleave",l,()=>map.getCanvas().style.cursor=""); });
+}
+const onStyle = () => { styleReady = true; start(); };
+map.once("style.load", onStyle);
+if (map.isStyleLoaded()) onStyle();
 Promise.all(["l2b","l4a","summary"].map(n=>fetch(`data/${n}.json`).then(r=>r.json()))).then(([l2b,l4a,summary])=>{
   state.data = {l2b,l4a,summary};
-  const gj = (arr)=>({type:"FeatureCollection",features:arr.map((r,i)=>({type:"Feature",id:i,properties:{...r,p:undefined,i},geometry:{type:"Point",coordinates:[r.x,r.y]}}))});
-  const init = () => {
-    map.addSource("l4a",{type:"geojson",data:gj(l4a)}); map.addSource("l2b",{type:"geojson",data:gj(l2b)});
-    ["l4a","l2b"].forEach(s=>map.addLayer({id:s+"-pts",type:"circle",source:s,paint:{
-      "circle-radius":["interpolate",["linear"],["zoom"],8,1.6,12,3.4,15,7],"circle-opacity":.92,
-      "circle-stroke-width":["case",["boolean",["feature-state","sel"],false],2,0],"circle-stroke-color":"#ffffff"}}));
-    buildControls(); update(); applyTheme(currentTheme, false);
-    const bb = summary.bbox, wide = window.innerWidth > 760;
-    map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], {padding: wide ? {top: 30, bottom: 30, left: 400, right: 360} : {top: 20, left: 20, right: 20, bottom: Math.round(window.innerHeight * 0.52)}, duration: 0});
-    map.on("click","l2b-pts",e=>{
-      const f=e.features[0], r=l2b[f.properties.i];
-      if(selected!==null) map.setFeatureState({source:"l2b",id:selected},{sel:false});
-      selected=f.id; map.setFeatureState({source:"l2b",id:selected},{sel:true});
-      drawProfiles([{p:r.p,col:CLASSES[r.c].col}], Math.max(0.05,...r.p)*1.1);
-      document.getElementById("iTitle").textContent = `${t("c_"+r.c)}, ${r.d}`;
-      document.getElementById("iMeta").textContent = t("fp",{h:fmt(r.h,1),cv:fmt(r.cv,2),pai:fmt(r.pai,2),fhd:fmt(r.fhd,2)});
-    });
-    map.on("click",e=>{ if(!map.queryRenderedFeatures(e.point,{layers:["l2b-pts"]}).length && selected!==null){ map.setFeatureState({source:"l2b",id:selected},{sel:false}); selected=null; drawClassProfiles(); }});
-    ["l2b-pts","l4a-pts"].forEach(l=>{ map.on("mouseenter",l,()=>map.getCanvas().style.cursor="pointer"); map.on("mouseleave",l,()=>map.getCanvas().style.cursor=""); });
-  };
-  if (map.loaded()) init(); else map.once("load", init);     // data may arrive before or after the map
+  start();
 });
 </script>
 </body>
