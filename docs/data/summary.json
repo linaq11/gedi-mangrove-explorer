@@ -1,0 +1,80 @@
+{
+  "bbox": [
+    -74.86,
+    10.548,
+    -74.205,
+    11.091
+  ],
+  "l2b_steps": {
+    "L2B shots in the box": 161558,
+    "after quality filters (sensitivity >= 0.95)": 10751,
+    "... with sensitivity >= 0.98": 1815,
+    "... on the four compared WorldCover classes": 10307
+  },
+  "l2b_dates": [
+    "2024-05-16",
+    "2025-06-20"
+  ],
+  "l4a_n": 57889,
+  "l4a_n_s98": 13417,
+  "l4a_dates": [
+    "2019-04-25",
+    "2025-02-17"
+  ],
+  "by_class": {
+    "Mangroves": {
+      "l2b_n": 3788,
+      "rh100_m": 17.365,
+      "cover": 0.769,
+      "pai": 2.944,
+      "fhd": 2.678,
+      "l4a_n": 13580,
+      "agbd_median": 47.123,
+      "agbd_median_s98": 59.119,
+      "agbd_mean": 55.6,
+      "agbd_mean_s98": 68.0
+    },
+    "Herbaceous wetland": {
+      "l2b_n": 1045,
+      "rh100_m": 4.44,
+      "cover": 0.036,
+      "pai": 0.074,
+      "fhd": 1.484,
+      "l4a_n": 8555,
+      "agbd_median": 0.97,
+      "agbd_median_s98": 0.447,
+      "agbd_mean": 8.5,
+      "agbd_mean_s98": 27.8
+    },
+    "Grassland": {
+      "l2b_n": 2984,
+      "rh100_m": 6.05,
+      "cover": 0.066,
+      "pai": 0.136,
+      "fhd": 1.675,
+      "l4a_n": 19169,
+      "agbd_median": 1.376,
+      "agbd_median_s98": 3.217,
+      "agbd_mean": 13.5,
+      "agbd_mean_s98": 58.0
+    },
+    "Tree cover": {
+      "l2b_n": 2490,
+      "rh100_m": 8.985,
+      "cover": 0.22,
+      "pai": 0.496,
+      "fhd": 2.006,
+      "l4a_n": 16585,
+      "agbd_median": 14.421,
+      "agbd_median_s98": 33.823,
+      "agbd_mean": 45.5,
+      "agbd_mean_s98": 91.1
+    }
+  },
+  "classes": {
+    "95": "Mangroves",
+    "90": "Herbaceous wetland",
+    "30": "Grassland",
+    "10": "Tree cover"
+  }
+}
