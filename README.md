@@ -20,7 +20,7 @@ Each dot is one GEDI footprint, about 25 m across. The dashboard compares four c
 
 ## One filter, a different answer
 
-GEDI's beam sensitivity is the canopy cover a shot can see through and still find the ground. In dense canopy a low-sensitivity shot can stop at a canopy layer and take it for the ground, which lowers the height and the biomass predicted from it. Raising the requirement from 0.95, the usual default, to 0.98, recommended for dense tropics, raises the median mangrove biomass from 47.1 to 59.1 Mg/ha and leaves 4,639 of the 13,580 mangrove biomass footprints. The dashboard lets you flip between the two.
+GEDI's beam sensitivity is the canopy cover a shot can see through and still find the ground. Requiring 0.98 instead of the usual 0.95 leaves 4,639 of the 13,580 mangrove biomass footprints and raises the median from 47.1 to 59.1 Mg/ha. The dashboard lets you flip between the two.
 
 ![Light interface in Spanish](docs/screenshot_light_es.jpg)
 
